@@ -518,7 +518,12 @@ class SBOL2To3ConversionVisitor:
 
     def visit_range(self, a: sbol2.Range):
         # Priority: 2
-        raise NotImplementedError('Conversion of Range from SBOL2 to SBOL3 not yet implemented')
+        orientation_map = {sbol2.SBOL_ORIENTATION_INLINE: sbol3.SBOL_INLINE,
+                        sbol2.SBOL_ORIENTATION_REVERSE_COMPLEMENT: sbol3.SBOL_REVERSE_COMPLEMENT}
+        orientation = orientation_map[a.orientation]
+        range3 = sbol3.Range(sequence=a.sequence, start=a.start, end=a.end,
+                             orientation=orientation, identity=a.identity)
+        return range3
 
     def visit_sequence(self, seq2: sbol2.Sequence):
         # Remap encoding if it's one of the ones that needs remapping; otherwise pass through unchanged
