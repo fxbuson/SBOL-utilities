@@ -11,3 +11,5 @@ test_secret*
 
 .idea/
 *.egg-info/
+
+*.DS_Store

@@ -129,6 +129,20 @@ class TestDirectSBOL2SBOL3Conversion(unittest.TestCase):
             doc2_loop.write(tmp2)
             self.assertFalse(file_diff(str(tmp2), str(TEST_FILES / 'sbol_3to2_collection.xml')))
 
+    def test_2to3_range_conversion(self):
+        doc2 = sbol2.Document()
+        doc2.read(TEST_FILES / 'CD_SA_Range_Example.xml')
+        #self.assertEqual(doc2.validate(), "Valid.")
+        doc3 = convert2to3(doc2, use_native_converter=False)
+        self.assertEqual(len(doc3.validate()), 0)
+
+    def test_2to3_cut_conversion(self):
+        doc2 = sbol2.Document()
+        doc2.read(TEST_FILES / 'CD_SA_Cut_Example.xml')
+        #self.assertEqual(doc2.validate(), "Valid.")
+        doc3 = convert2to3(doc2, use_native_converter=False)
+        self.assertEqual(len(doc3.validate()), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
