@@ -73,6 +73,10 @@ class SBOL3To2ConversionVisitor:
         obj2.description = self._value_or_property(obj3, obj3.description, 'http://purl.org/dc/terms/description')
         obj2.wasDerivedFrom = obj3.derived_from
         obj2.wasGeneratedBy = obj3.generated_by
+
+        # Add version to identity
+        obj2.identity = obj2.identity + "/" + obj3.sbol2_version
+            
         # Turn measures into extension properties
         if obj3.measures:
             raise NotImplementedError('Conversion of measures from SBOL3 to SBOL2 not yet implemented')
@@ -341,6 +345,9 @@ class SBOL2To3ConversionVisitor:
         self._convert_identified(obj2, obj3)
         obj3.attachments = [a.identity for a in obj2.attachments]
 
+    def _sbol3_identity(self, obj2: sbol2.Identified):
+        return obj2.identity.rstrip("/" + obj2.version)
+
     def _sbol3_namespace(self, obj2: sbol2.TopLevel):
         # If a namespace is explicitly set, that takes priority
         if BACKPORT3_NAMESPACE in obj2.properties:
@@ -350,15 +357,16 @@ class SBOL2To3ConversionVisitor:
                                  f'but was {namespaces}')
             return namespaces[0]
         # Check if the object starts with any of the provided namespaces
-        for namespace in self.namespaces:
-            if obj2.identity.startswith(namespace):
-                return namespace
+        if self.namespaces:
+            for namespace in self.namespaces:
+                if obj2.identity.startswith(namespace):
+                    return namespace
         # Otherwise, use default behavior
         return None
 
     def visit_activity(self, act2: sbol2.Activity):
         # Make the Activity object and add it to the document
-        act3 = sbol3.Activity(act2.identity, namespace=self._sbol3_namespace(act2),
+        act3 = sbol3.Activity(self._sbol3_identity(act2), namespace=self._sbol3_namespace(act2),
                               start_time=act2.startedAtTime, end_time=act2.endedAtTime)
         self.doc3.add(act3)
         # Convert child objects after adding to document
@@ -386,7 +394,7 @@ class SBOL2To3ConversionVisitor:
     def visit_collection(self, coll2: sbol2.Collection):
         # Priority: 1
         # Make the Collection object and add it to the document
-        coll3 = sbol3.Collection(coll2.identity, members=coll2.members)
+        coll3 = sbol3.Collection(self._sbol3_identity(coll2), members=coll2.members)
         self.doc3.add(coll3)
         # Map over all other TopLevel properties and extensions not covered by the constructor
         self._convert_toplevel(coll2, coll3)
@@ -406,7 +414,7 @@ class SBOL2To3ConversionVisitor:
                     sbol2.BIOPAX_COMPLEX: sbol3.SBO_NON_COVALENT_COMPLEX}
         types3 = [type_map.get(t, t) for t in cd2.types]
         # Make the Component object and add it to the document
-        cp3 = sbol3.Component(cd2.identity, types3, namespace=self._sbol3_namespace(cd2),
+        cp3 = sbol3.Component(self._sbol3_identity(cd2), types3, namespace=self._sbol3_namespace(cd2),
                               roles=cd2.roles, sequences=cd2.sequences)
         self.doc3.add(cp3)
         # Convert the Component properties not covered by the constructor
@@ -479,7 +487,7 @@ class SBOL2To3ConversionVisitor:
     def visit_implementation(self, imp2: sbol2.Implementation):
         # Priority: 1
         # Make the Implementation object and add it to the document
-        imp3 = sbol3.Implementation(imp2.identity, namespace=self._sbol3_namespace(imp2), built=imp2.built)
+        imp3 = sbol3.Implementation(self._sbol3_identity(imp2.identity), namespace=self._sbol3_namespace(imp2), built=imp2.built)
         self.doc3.add(imp3)
         # Map over all other TopLevel properties and extensions not covered by the constructor
         self._convert_toplevel(imp2, imp3)
@@ -527,7 +535,7 @@ class SBOL2To3ConversionVisitor:
                         sbol2.SBOL_ENCODING_SMILES: sbol3.SMILES_ENCODING}
         encoding3 = encoding_map.get(seq2.encoding, seq2.encoding)
         # Make the Sequence object and add it to the document
-        seq3 = sbol3.Sequence(seq2.identity, namespace=self._sbol3_namespace(seq2),
+        seq3 = sbol3.Sequence(self._sbol3_identity(seq2.identity), namespace=self._sbol3_namespace(seq2),
                               elements=seq2.elements, encoding=encoding3)
         self.doc3.add(seq3)
         # Map over all other TopLevel properties and extensions not covered by the constructor
