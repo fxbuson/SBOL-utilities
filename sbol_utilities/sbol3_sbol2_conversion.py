@@ -366,8 +366,10 @@ class SBOL2To3ConversionVisitor:
         obj3.attachments = [a.identity for a in obj2.attachments]
 
     def _sbol3_identity(self, obj2: sbol2.Identified):
-        return obj2.identity.rstrip("/" + obj2.version)
-
+        if obj2.identity.endswith("/" + obj2.version):
+            return obj2.identity[:-len("/" + obj2.version)]
+        return obj2.identity
+    
     def _sbol3_namespace(self, obj2: sbol2.TopLevel):
         # If a namespace is explicitly set, that takes priority
         if BACKPORT3_NAMESPACE in obj2.properties:
@@ -438,15 +440,19 @@ class SBOL2To3ConversionVisitor:
                               roles=cd2.roles, sequences=cd2.sequences)
         self.doc3.add(cp3)
         # Convert the Component properties not covered by the constructor
+        feats3 = []
         if cd2.components:
             raise NotImplementedError('Conversion of ComponentDefinition components '
                                       'from SBOL2 to SBOL3 not yet implemented')
         if cd2.sequenceAnnotations:
-            raise NotImplementedError('Conversion of ComponentDefinition sequenceAnnotations '
-                                      'from SBOL2 to SBOL3 not yet implemented')
+            for sa2 in cd2.sequenceAnnotations:
+                feats3.append(self.visit_sequence_annotation(sa2)) # will have to handle the two modes of this function. (if an SA has a component, it won't return anything)
         if cd2.sequenceConstraints:
             raise NotImplementedError('Conversion of ComponentDefinition sequenceConstraints '
                                       'from SBOL2 to SBOL3 not yet implemented')
+        
+        cp3.features = feats3
+
         # Map over all other TopLevel properties and extensions not covered by the constructor
         self._convert_toplevel(cd2, cp3)
 
@@ -458,7 +464,8 @@ class SBOL2To3ConversionVisitor:
         # Priority: 2
         orientation3 = self._sbol3_orientation(cut2.orientation)
         cut3 = sbol3.Cut(sequence=cut2.sequence, at=cut2.at,
-                         orientation=orientation3, identity=cut2.identity)
+                         orientation=orientation3, identity = self._sbol3_identity(cut2))
+        self._convert_identified(cut2, cut3)
         return cut3
 
     def visit_document(self, doc2: sbol2.Document):
@@ -551,7 +558,8 @@ class SBOL2To3ConversionVisitor:
         # Priority: 2
         orientation3 = self._sbol3_orientation(range2.orientation)
         range3 = sbol3.Range(sequence=range2.sequence, start=range2.start, end=range2.end,
-                             orientation=orientation3, identity=range2.identity)
+                             orientation=orientation3, identity = self._sbol3_identity(range2))
+        self._convert_identified(range2, range3)
         return range3
 
     def visit_sequence(self, seq2: sbol2.Sequence):
@@ -561,15 +569,30 @@ class SBOL2To3ConversionVisitor:
                         sbol2.SBOL_ENCODING_SMILES: sbol3.SMILES_ENCODING}
         encoding3 = encoding_map.get(seq2.encoding, seq2.encoding)
         # Make the Sequence object and add it to the document
-        seq3 = sbol3.Sequence(self._sbol3_identity(seq2.identity), namespace=self._sbol3_namespace(seq2),
+        seq3 = sbol3.Sequence(self._sbol3_identity(seq2), namespace=self._sbol3_namespace(seq2),
                               elements=seq2.elements, encoding=encoding3)
         self.doc3.add(seq3)
         # Map over all other TopLevel properties and extensions not covered by the constructor
         self._convert_toplevel(seq2, seq3)
 
-    def visit_sequence_annotation(self, seq2: sbol2.SequenceAnnotation):
+    def visit_sequence_annotation(self, sa2: sbol2.SequenceAnnotation):
         # Priority: 1
-        raise NotImplementedError('Conversion of SequenceAnnotation from SBOL2 to SBOL3 not yet implemented')
+        if not sa2.component:
+            # Convert locations
+            locs3 = []
+            for loc2 in sa2.locations:
+                if loc2.rdf_type == sbol2.SBOL_RANGE:
+                    locs3.append(self.visit_range(loc2))
+                elif loc2.rdf_type == sbol2.SBOL_CUT:
+                    locs3.append(self.visit_cut(loc2))
+                elif loc2.rdf_type == sbol2.SBOL_GENERIC_LOCATION:
+                    locs3.append(self.visit_generic_location(loc2))
+
+            sa3 = sbol3.SequenceFeature(locations=locs3, roles = sa2.roles, orientation = None, identity = self._sbol3_identity(sa2))
+            self._convert_identified(sa2, sa3)
+            return sa3
+        else:
+            raise NotImplementedError('Conversion of SequenceAnnotations with Components from SBOL2 to SBOL3 not yet implemented')
 
     def visit_sequence_constraint(self, seq2: sbol2.sequenceconstraint.SequenceConstraint):
         # Priority: 2
