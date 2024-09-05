@@ -346,7 +346,9 @@ class SBOL2To3ConversionVisitor:
         obj3.attachments = [a.identity for a in obj2.attachments]
 
     def _sbol3_identity(self, obj2: sbol2.Identified):
-        return obj2.identity.rstrip("/" + obj2.version)
+        if obj2.identity.endswith("/" + obj2.version):
+            return obj2.identity[:-len("/" + obj2.version)]
+        return obj2.identity
 
     def _sbol3_namespace(self, obj2: sbol2.TopLevel):
         # If a namespace is explicitly set, that takes priority
@@ -487,7 +489,7 @@ class SBOL2To3ConversionVisitor:
     def visit_implementation(self, imp2: sbol2.Implementation):
         # Priority: 1
         # Make the Implementation object and add it to the document
-        imp3 = sbol3.Implementation(self._sbol3_identity(imp2.identity), namespace=self._sbol3_namespace(imp2), built=imp2.built)
+        imp3 = sbol3.Implementation(self._sbol3_identity(imp2), namespace=self._sbol3_namespace(imp2), built=imp2.built)
         self.doc3.add(imp3)
         # Map over all other TopLevel properties and extensions not covered by the constructor
         self._convert_toplevel(imp2, imp3)
@@ -535,7 +537,7 @@ class SBOL2To3ConversionVisitor:
                         sbol2.SBOL_ENCODING_SMILES: sbol3.SMILES_ENCODING}
         encoding3 = encoding_map.get(seq2.encoding, seq2.encoding)
         # Make the Sequence object and add it to the document
-        seq3 = sbol3.Sequence(self._sbol3_identity(seq2.identity), namespace=self._sbol3_namespace(seq2),
+        seq3 = sbol3.Sequence(self._sbol3_identity(seq2), namespace=self._sbol3_namespace(seq2),
                               elements=seq2.elements, encoding=encoding3)
         self.doc3.add(seq3)
         # Map over all other TopLevel properties and extensions not covered by the constructor
