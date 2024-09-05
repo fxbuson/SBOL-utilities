@@ -88,6 +88,12 @@ class SBOL3To2ConversionVisitor:
         obj2.properties[BACKPORT3_NAMESPACE] = [URIRef(obj3.namespace)]
 
     @staticmethod
+    def _sbol2_orientation(obj3: str):
+        orientation_map = {sbol3.SBOL_INLINE: sbol2.SBOL_ORIENTATION_INLINE,
+                           sbol3.SBOL_REVERSE_COMPLEMENT: sbol2.SBOL_ORIENTATION_REVERSE_COMPLEMENT}
+        return orientation_map[obj3]
+
+    @staticmethod
     def _sbol2_version(obj: sbol3.Identified):
         if not hasattr(obj, 'sbol2_version'):
             obj.sbol2_version = sbol3.TextProperty(obj, BACKPORT2_VERSION, 0, 1)
@@ -181,9 +187,13 @@ class SBOL3To2ConversionVisitor:
         # Priority: 2
         raise NotImplementedError('Conversion of Constraint from SBOL3 to SBOL2 not yet implemented')
 
-    def visit_cut(self, a: sbol3.Cut):
+    def visit_cut(self, cut3: sbol3.Cut):
         # Priority: 2
-        raise NotImplementedError('Conversion of Cut from SBOL3 to SBOL2 not yet implemented')
+        orientation2 = self._sbol2_orientation(cut3.orientation)
+        cut2 = sbol2.Cut(cut3.identity, at=cut3.at, version=self._sbol2_version(cut3))
+        cut2.orientation = orientation2
+        cut2.sequence = cut3.sequence
+        return cut2
 
     def visit_document(self, doc3: sbol3.Document):
         for obj in doc3.objects:
@@ -246,9 +256,13 @@ class SBOL3To2ConversionVisitor:
         # Priority: 4
         raise NotImplementedError('Conversion of PrefixedUnit from SBOL3 to SBOL2 not yet implemented')
 
-    def visit_range(self, a: sbol3.Range):
+    def visit_range(self, range3: sbol3.Range):
         # Priority: 2
-        raise NotImplementedError('Conversion of Range from SBOL3 to SBOL2 not yet implemented')
+        orientation2 = self._sbol2_orientation(range3.orientation)
+        range2 = sbol2.Range(range3.identity, range3.start, range3.end, self._sbol2_version(range3))
+        range2.orientation = orientation2
+        range2.sequence = range3.sequence
+        return range2
 
     def visit_si_prefix(self, a: sbol3.SIPrefix):
         # Priority: 4
@@ -325,6 +339,12 @@ class SBOL2To3ConversionVisitor:
                                 if not any(p.startswith(prefix) for prefix in SBOL2_NON_EXTENSION_PROPERTY_PREFIXES))
         for p in extension_properties:
             obj3._properties[p] = obj2.properties[p]
+
+    @staticmethod
+    def _sbol3_orientation(obj2: str):
+        orientation_map = {sbol2.SBOL_ORIENTATION_INLINE: sbol3.SBOL_INLINE,
+                        sbol2.SBOL_ORIENTATION_REVERSE_COMPLEMENT: sbol3.SBOL_REVERSE_COMPLEMENT}
+        return orientation_map[obj2]
 
     def _convert_identified(self, obj2: sbol2.Identified, obj3: sbol3.Identified):
         """Map over the other properties of an Identified object"""
@@ -434,9 +454,12 @@ class SBOL2To3ConversionVisitor:
         # Priority: 2
         raise NotImplementedError('Conversion of Component from SBOL2 to SBOL3 not yet implemented')
 
-    def visit_cut(self, a: sbol2.Cut):
+    def visit_cut(self, cut2: sbol2.Cut):
         # Priority: 2
-        raise NotImplementedError('Conversion of Cut from SBOL2 to SBOL3 not yet implemented')
+        orientation3 = self._sbol3_orientation(cut2.orientation)
+        cut3 = sbol3.Cut(sequence=cut2.sequence, at=cut2.at,
+                         orientation=orientation3, identity=cut2.identity)
+        return cut3
 
     def visit_document(self, doc2: sbol2.Document):
         for obj in doc2.componentDefinitions:
@@ -524,9 +547,12 @@ class SBOL2To3ConversionVisitor:
         # Priority: 3
         raise NotImplementedError('Conversion of Plan from SBOL2 to SBOL3 not yet implemented')
 
-    def visit_range(self, a: sbol2.Range):
+    def visit_range(self, range2: sbol2.Range):
         # Priority: 2
-        raise NotImplementedError('Conversion of Range from SBOL2 to SBOL3 not yet implemented')
+        orientation3 = self._sbol3_orientation(range2.orientation)
+        range3 = sbol3.Range(sequence=range2.sequence, start=range2.start, end=range2.end,
+                             orientation=orientation3, identity=range2.identity)
+        return range3
 
     def visit_sequence(self, seq2: sbol2.Sequence):
         # Remap encoding if it's one of the ones that needs remapping; otherwise pass through unchanged

@@ -14,3 +14,4 @@ test_secret*
 
 # Exclude the virtual environment
 venv
+*.DS_Store
