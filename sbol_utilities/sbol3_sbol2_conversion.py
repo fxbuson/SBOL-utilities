@@ -75,7 +75,10 @@ class SBOL3To2ConversionVisitor:
         obj2.wasGeneratedBy = obj3.generated_by
 
         # Add version to identity
-        obj2.identity = obj2.identity + "/" + obj3.sbol2_version
+        if obj3.sbol2_version:
+            obj2.identity = obj2.identity + "/" + obj3.sbol2_version
+        else:
+            obj2.identity = obj2.identity + "/1"
             
         # Turn measures into extension properties
         if obj3.measures:
